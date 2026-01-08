@@ -30,3 +30,7 @@ output/document_list.tex
 # ---- Project data (input documents) ----
 data/**
 !data/**/.gitkeep
+
+# ---- LaTeX build output ----
+latex_build/
+latex_result/
