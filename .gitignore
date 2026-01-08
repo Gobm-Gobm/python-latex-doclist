@@ -1,0 +1,32 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyo
+
+# ---- Virtual environment ----
+venv/
+
+# ---- Editor ----
+.vscode/
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+
+# ---- LaTeX ----
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# ---- Generated output ----
+output/document_list.tex
+
+# ---- Project data (input documents) ----
+data/**
+!data/**/.gitkeep
