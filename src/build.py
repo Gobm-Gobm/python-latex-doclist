@@ -34,7 +34,7 @@ LATEX_EXTENSIONS = {
 
 def generate_document_list():
     """
-    Generate the LaTeX document list from files in data/documents.
+    Generoutputate the LaTeX document list from files in data/documents.
     """
     print("Generating document list...")
     subprocess.run(

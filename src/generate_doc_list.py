@@ -1,4 +1,6 @@
 from pathlib import Path
+from filename_parser import describe_drawing
+
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -82,10 +84,15 @@ def write_latex_list(files, output_file: Path):
         f.write("\\begin{itemize}\n")
 
         for file in files:
-            # Escape LaTeX-sensitive characters in the filename
-            safe_name = escape_latex(file.name)
-            f.write(f"  \\item {safe_name}\n")
+            description = describe_drawing(file.name)
 
+            safe_name = escape_latex(file.name)
+            safe_description = escape_latex(description)
+
+            if description != "N/A":
+                f.write(f"  \\item {safe_name} --- {safe_description}\n")
+            else:
+                f.write(f"  \\item {safe_name} --- N/A\n")
         f.write("\\end{itemize}\n")
 
 # ---------------------------------------------------------------------------
