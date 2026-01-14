@@ -1,5 +1,11 @@
 from pathlib import Path
-from filename_parser import describe_drawing
+from filename_parser import (
+    describe_drawing,
+    get_tank_number,
+    get_drawing_code,
+)
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -69,31 +75,38 @@ def get_documents(folder: Path):
 
 def write_latex_list(files, output_file: Path):
     """
-    Write a LaTeX itemized list of document filenames.
-
-    The output file is generated automatically and should not be edited
-    manually, as it will be overwritten each time the script is run.
+    Write a LaTeX table containing the document list.
     """
-    # Ensure the output directory exists
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
-    # Write the LaTeX content
     with output_file.open("w", encoding="utf-8") as f:
         f.write("% Auto-generated file — do not edit manually\n")
         f.write("\\section*{Document List}\n")
-        f.write("\\begin{itemize}\n")
+
+        # Table header
+        f.write("\\begin{tabularx}{\\textwidth}{llXlX}\n")
+        f.write("\\hline\n")
+        f.write("Tank & Drawing code & Filename & File type & Description \\\\\n")
+        f.write("\\hline\n")
 
         for file in files:
+            tank = get_tank_number(file.name)
+            drawing_code = get_drawing_code(file.name)
             description = describe_drawing(file.name)
 
+            safe_tank = escape_latex(tank)
+            safe_code = escape_latex(drawing_code)
             safe_name = escape_latex(file.name)
             safe_description = escape_latex(description)
+            file_type = file.suffix.upper().replace(".", "")
 
-            if description != "N/A":
-                f.write(f"  \\item {safe_name} --- {safe_description}\n")
-            else:
-                f.write(f"  \\item {safe_name} --- N/A\n")
-        f.write("\\end{itemize}\n")
+            f.write(
+                f"{safe_tank} & {safe_code} & {safe_name} & "
+                f"{file_type} & {safe_description} \\\\\n"
+            )
+
+        f.write("\\hline\n")
+        f.write("\\end{tabularx}\n")
 
 # ---------------------------------------------------------------------------
 # Entry point
