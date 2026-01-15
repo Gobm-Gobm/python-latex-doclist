@@ -4,6 +4,7 @@ from filename_parser import (
     get_tank_number,
     get_drawing_code,
 )
+import csv
 
 
 
@@ -20,6 +21,9 @@ DOCUMENTS_DIR = PROJECT_ROOT / "data" / "documents"
 # Output LaTeX file (this file is generated automatically)
 OUTPUT_FILE = PROJECT_ROOT / "output" / "document_list.tex"
 
+# Folder containing csv file for revisions & date
+REVISION_CSV = PROJECT_ROOT / "data" / "revisions.csv"
+
 # File extensions that should be treated as documents
 # Only files with these extensions will appear in the list
 EXTENSIONS = {
@@ -27,6 +31,8 @@ EXTENSIONS = {
     ".tex",   # LaTeX source documents
     ".rvt",   # Revit models
 }
+
+
 
 # Mapping of LaTeX special characters to their escaped equivalents
 # This prevents LaTeX compilation errors when filenames contain
@@ -72,37 +78,62 @@ def get_documents(folder: Path):
         if f.is_file() and f.suffix.lower() in EXTENSIONS
     )
 
-
-def write_latex_list(files, output_file: Path):
+def load_revision_data(csv_file: Path) -> dict:
     """
-    Write a LaTeX table containing the document list.
+    Load revision data from CSV into a lookup dictionary.
+
+    Returns:
+    {
+        drawing_id: {
+            "rev": ...,
+            "issue_date": ...,
+            "status": ...,
+            "exists": ...
+        }
+    }
+    """
+    if not csv_file.exists():
+        return {}
+
+    with csv_file.open("r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        return {row["drawing_id"]: row for row in reader}
+
+
+def write_latex_list(files, output_file: Path, revisions: dict):
+    """
+    Write a compact, readable LaTeX drawing list table.
+
+    Columns:
+    Filename | Description | Rev | Issue date | Status
     """
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
     with output_file.open("w", encoding="utf-8") as f:
         f.write("% Auto-generated file — do not edit manually\n")
-        f.write("\\section*{Document List}\n")
+        f.write("\\section*{Drawing List}\n")
 
-        # Table header
-        f.write("\\begin{tabularx}{\\textwidth}{llXlX}\n")
+        f.write("\\begin{tabularx}{\\textwidth}{X X l l l}\n")
         f.write("\\hline\n")
-        f.write("Tank & Drawing code & Filename & File type & Description \\\\\n")
+        f.write("Filename & Description & Rev & Issue date & Status \\\\\n")
         f.write("\\hline\n")
 
         for file in files:
-            tank = get_tank_number(file.name)
-            drawing_code = get_drawing_code(file.name)
+            drawing_id = file.stem
+            revision = revisions.get(drawing_id, {})
+
             description = describe_drawing(file.name)
 
-            safe_tank = escape_latex(tank)
-            safe_code = escape_latex(drawing_code)
-            safe_name = escape_latex(file.name)
-            safe_description = escape_latex(description)
-            file_type = file.suffix.upper().replace(".", "")
+            rev = revision.get("rev", "-") or "-"
+            issue_date = revision.get("issue_date", "-") or "-"
+            status = revision.get("status", "-") or "-"
 
             f.write(
-                f"{safe_tank} & {safe_code} & {safe_name} & "
-                f"{file_type} & {safe_description} \\\\\n"
+                f"{escape_latex(file.name)} & "
+                f"{escape_latex(description)} & "
+                f"{escape_latex(rev)} & "
+                f"{escape_latex(issue_date)} & "
+                f"{escape_latex(status)} \\\\\n"
             )
 
         f.write("\\hline\n")
@@ -120,9 +151,10 @@ def main():
     document list.
     """
     files = get_documents(DOCUMENTS_DIR)
-    write_latex_list(files, OUTPUT_FILE)
-    print(f"Wrote {len(files)} documents to {OUTPUT_FILE}")
+    revisions = load_revision_data(REVISION_CSV)
 
+    write_latex_list(files, OUTPUT_FILE, revisions)
+    print(f"Wrote {len(files)} documents to {OUTPUT_FILE}")
 
 # Run the script only when executed directly (not when imported)
 if __name__ == "__main__":
