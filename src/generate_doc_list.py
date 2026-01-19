@@ -3,8 +3,11 @@ from filename_parser import (
     describe_drawing,
     get_tank_number,
     get_drawing_code,
+    category_packages,
+    get_category_code, 
 )
 import csv
+from config import CSV_DELIMITER, PACKAGES
 
 
 
@@ -78,29 +81,21 @@ def get_documents(folder: Path):
         if f.is_file() and f.suffix.lower() in EXTENSIONS
     )
 
-def load_revision_data(csv_file: Path) -> dict:
-    """
-    Load revision data from CSV into a lookup dictionary.
+def load_revision_data(csv_path):
+    with csv_path.open("r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f, delimiter=CSV_DELIMITER)
 
-    Returns:
-    {
-        drawing_id: {
-            "rev": ...,
-            "issue_date": ...,
-            "status": ...,
-            "exists": ...
-        }
-    }
-    """
-    if not csv_file.exists():
-        return {}
+        if "drawing_id" not in reader.fieldnames:
+            raise ValueError(
+                f"CSV header mismatch in {csv_path}. "
+                f"Found: {reader.fieldnames}. "
+                f"Check delimiter or CSV format."
+            )
 
-    with csv_file.open("r", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
         return {row["drawing_id"]: row for row in reader}
 
 
-def write_latex_list(files, output_file: Path, revisions: dict):
+def write_latex_list(files, output_file: Path, revisions: dict, title: str):
     """
     Write a compact, readable LaTeX drawing list table.
 
@@ -111,7 +106,7 @@ def write_latex_list(files, output_file: Path, revisions: dict):
 
     with output_file.open("w", encoding="utf-8") as f:
         f.write("% Auto-generated file — do not edit manually\n")
-        f.write("\\section*{Drawing List}\n")
+        f.write(f"\\section*{{{title}}}\n")
 
         f.write("\\begin{tabularx}{\\textwidth}{X X l l l}\n")
         f.write("\\hline\n")
@@ -144,17 +139,23 @@ def write_latex_list(files, output_file: Path, revisions: dict):
 # ---------------------------------------------------------------------------
 
 def main():
-    """
-    Main execution function.
-
-    Collects documents from the input folder and generates the LaTeX
-    document list.
-    """
     files = get_documents(DOCUMENTS_DIR)
     revisions = load_revision_data(REVISION_CSV)
 
-    write_latex_list(files, OUTPUT_FILE, revisions)
-    print(f"Wrote {len(files)} documents to {OUTPUT_FILE}")
+    package_files = {pkg: [] for pkg in PACKAGES}
+
+    for file in files:
+        cat = get_category_code(file.name)
+        for pkg in category_packages(cat):
+            if pkg in package_files:
+                package_files[pkg].append(file)
+
+    for pkg, pkg_files in package_files.items():
+        out = PROJECT_ROOT / "output" / f"document_list_{pkg}.tex"
+        title = PACKAGES[pkg]["title"]
+        write_latex_list(pkg_files, out, revisions, title)
+        print(f"Wrote {len(pkg_files)} documents to {out}")
+
 
 # Run the script only when executed directly (not when imported)
 if __name__ == "__main__":

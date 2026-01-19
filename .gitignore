@@ -31,6 +31,9 @@ output/document_list.tex
 data/**
 !data/**/.gitkeep
 
+# ---- Submodule ----
+tex-template/**
+
 # ---- LaTeX build output ----
 latex_build/
 latex_result/

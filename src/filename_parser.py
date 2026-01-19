@@ -1,10 +1,19 @@
 from pathlib import Path
+from drawing_categories import DRAWING_CATEGORY
 
-# Mapping of drawing category codes
-DRAWING_CATEGORY = {
-    "11": "Concrete layout",
-    "13": "Reinforcement layout",
-}
+def category_packages(category_code: str) -> set[str]:
+    meta = DRAWING_CATEGORY.get(category_code)
+    return meta["packages"] if meta else set()
+
+def category_label(category_code: str) -> str:
+    meta = DRAWING_CATEGORY.get(category_code)
+    return meta["label"] if meta else "N/A"
+
+def get_category_code(filename: str) -> str:
+    code = get_drawing_code(filename)
+    if code != "N/A":
+        return code[:2]
+    return "N/A"
 
 
 def describe_drawing(filename: str) -> str:
@@ -20,18 +29,17 @@ def describe_drawing(filename: str) -> str:
 
     code = parts[-1]
 
-    # Expect exactly four digits in drawing code
     if len(code) != 4 or not code.isdigit():
         return "N/A"
 
     category_code = code[:2]
     type_code = code[2:]
 
-    category = DRAWING_CATEGORY.get(category_code)
-    if not category:
+    meta = DRAWING_CATEGORY.get(category_code)
+    if not meta:
         return "N/A"
 
-    return f"{category} type {type_code}"
+    return f"{meta['label']} type {type_code}"
 
 def get_tank_number(filename: str) -> str:
     """

@@ -6,6 +6,7 @@ DOCUMENTS_DIR = PROJECT_ROOT / "data" / "documents"
 CSV_FILE = PROJECT_ROOT / "data" / "revisions.csv"
 
 EXTENSIONS = {".pdf", ".rvt", ".tex"}
+DELIMITER = ";"  # Excel-friendly (EU locales)
 
 
 def get_drawing_ids():
@@ -20,15 +21,20 @@ def read_csv():
     if not CSV_FILE.exists():
         return {}
 
-    with CSV_FILE.open("r", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
+    with CSV_FILE.open("r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f, delimiter=DELIMITER)
         return {row["drawing_id"]: row for row in reader}
 
 
 def write_csv(rows):
-    with CSV_FILE.open("w", newline="", encoding="utf-8") as f:
-        fieldnames = ["drawing_id", "rev", "issue_date", "status", "exists"]
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+    fieldnames = ["drawing_id", "rev", "issue_date", "status", "exists"]
+
+    with CSV_FILE.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=fieldnames,
+            delimiter=DELIMITER
+        )
         writer.writeheader()
         for row in rows.values():
             writer.writerow(row)
