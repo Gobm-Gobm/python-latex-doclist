@@ -1,0 +1,3 @@
+[submodule "tex-templates"]
+	path = tex-templates
+	url = https://github.com/Gobm-Gobm/latex-engineering-templates
