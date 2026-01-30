@@ -1,57 +1,150 @@
 from pathlib import Path
 from drawing_categories import DRAWING_CATEGORY
 
-def category_packages(category_code: str) -> set[str]:
-    meta = DRAWING_CATEGORY.get(category_code)
-    return meta["packages"] if meta else set()
+
+# ---------------------------------------------------------------------------
+# Low-level helpers
+# ---------------------------------------------------------------------------
+
+def _stem_parts(filename: str) -> list[str]:
+    """
+    Split filename stem into dash-separated parts.
+
+    AQ430773-01-45-32-1103_Concrete_layout.pdf
+    -> [..., '1103_Concrete_layout']
+    """
+    return Path(filename).stem.split("-")
+
+
+def _extract_code_block(filename: str) -> str:
+    """
+    Extract the final code block (before optional underscore description).
+
+    Examples:
+    - 1103                  -> 1103
+    - 1103_Concrete_layout  -> 1103
+    - D000_Drawing_list     -> D000
+    """
+    parts = _stem_parts(filename)
+    if not parts:
+        return "N/A"
+
+    raw = parts[-1]
+    return raw.split("_")[0]
+
+
+# ---------------------------------------------------------------------------
+# Drawing / document code extraction
+# ---------------------------------------------------------------------------
+
+def get_drawing_code(filename: str) -> str:
+    """
+    Extract drawing / document / model code.
+
+    Returns:
+    - '1103', 'D000', 'C110', 'M100', 'P110'
+    - 'N/A' if invalid
+    """
+    code = _extract_code_block(filename)
+
+    if len(code) == 4 and code.isdigit():
+        return code
+
+    if len(code) == 4 and code[0].isalpha() and code[1:].isdigit():
+        return code
+
+    return "N/A"
+
+
+def get_category_code(filename: str) -> str:
+    """
+    Extract numeric drawing category (DD).
+
+    Returns:
+    - '11', '12', etc.
+    - 'N/A' for non-numeric or unknown codes
+    """
+    code = get_drawing_code(filename)
+
+    if code.isdigit():
+        return code[:2]
+
+    return "N/A"
+
+
+# ---------------------------------------------------------------------------
+# Category metadata
+# ---------------------------------------------------------------------------
 
 def category_label(category_code: str) -> str:
     meta = DRAWING_CATEGORY.get(category_code)
     return meta["label"] if meta else "N/A"
 
-def get_category_code(filename: str) -> str:
-    code = get_drawing_code(filename)
-    if code != "N/A":
-        return code[:2]
-    return "N/A"
 
+def category_packages(category_code: str) -> set[str]:
+    meta = DRAWING_CATEGORY.get(category_code)
+    return meta["packages"] if meta else set()
+
+
+def category_is_element_based(category_code: str) -> bool:
+    meta = DRAWING_CATEGORY.get(category_code)
+    return meta["element_based"] if meta else False
+
+
+# ---------------------------------------------------------------------------
+# Human-readable description
+# ---------------------------------------------------------------------------
 
 def describe_drawing(filename: str) -> str:
     """
-    Generate a human-readable drawing description from filename.
+    Generate a human-readable description.
 
-    Example:
-    AQ430773-00-45-32-1102.pdf
-    → Concrete layout type 02
+    Rules:
+    - Element-based categories → include type
+    - Non-element-based → category only
+    - Alphanumeric codes → descriptive label
     """
-    stem = Path(filename).stem
-    parts = stem.split("-")
-
-    code = parts[-1]
-
-    if len(code) != 4 or not code.isdigit():
+    code = get_drawing_code(filename)
+    if code == "N/A":
         return "N/A"
 
-    category_code = code[:2]
-    type_code = code[2:]
+    # Numeric drawing code
+    if code.isdigit():
+        category = code[:2]
+        type_code = code[2:]
 
-    meta = DRAWING_CATEGORY.get(category_code)
-    if not meta:
-        return "N/A"
+        meta = DRAWING_CATEGORY.get(category)
+        if not meta:
+            return "N/A"
 
-    return f"{meta['label']} type {type_code}"
+        if meta["element_based"]:
+            return f"{meta['label']} type {type_code}"
+
+        return meta["label"]
+
+    # Alphanumeric codes (D000, C110, M100, P110)
+    prefix = code[0]
+
+    return {
+        "D": "Document",
+        "C": "Calculation",
+        "M": "3D model",
+        "P": "Protocol / installation document",
+    }.get(prefix, "Document")
+
+
+# ---------------------------------------------------------------------------
+# Tank handling
+# ---------------------------------------------------------------------------
 
 def get_tank_number(filename: str) -> str:
     """
-    Extract tank number from filename.
-
-    Expected format:
-    AQ430773-01-45-32-1103.pdf
+    Extract tank number.
 
     Returns:
-    - "General" for tank 00
-    - "01", "02", etc. for specific tanks
-    - "N/A" if format is unexpected
+    - 'General' for 00
+    - '01', '02', etc.
+    - 'N/A' if missing
     """
     parts = filename.split("-")
 
@@ -65,29 +158,5 @@ def get_tank_number(filename: str) -> str:
 
     if tank.isdigit():
         return tank
-
-    return "N/A"
-
-def get_drawing_code(filename: str) -> str:
-    """
-    Extract drawing code from filename.
-
-    Expected format:
-    AQ430773-01-45-32-1103.pdf
-
-    Returns:
-    - '1103' if present and valid
-    - 'N/A' otherwise
-    """
-    stem = Path(filename).stem
-    parts = stem.split("-")
-
-    if not parts:
-        return "N/A"
-
-    code = parts[-1]
-
-    if len(code) == 4 and code.isdigit():
-        return code
 
     return "N/A"
