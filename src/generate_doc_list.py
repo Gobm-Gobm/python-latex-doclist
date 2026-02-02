@@ -106,13 +106,13 @@ def write_latex_list(files, output_file: Path, revisions: dict, title: str):
     with output_file.open("w", encoding="utf-8") as f:
         f.write("% Auto-generated file — do not edit manually\n")
         f.write(f"\\section*{{{title}}}\n")
-        f.write("\\begin{tabularx}{\\textwidth}{X X l l l}\n")
+        f.write("\\begin{tabularx}{\\textwidth}{l l X l l l}\n")
         f.write("\\hline\n")
-        f.write("Filename & Description & Rev & Issue date & Status \\\\\n")
+        f.write("Filename & Ext. & Description & Rev & Issue date & Status \\\\\n")
         f.write("\\hline\n")
 
         for file in files:
-            drawing_id = file.stem
+            drawing_id = file.stem.split("_", 1)[0]
             revision = revisions.get(drawing_id, {})
 
             description = describe_drawing(file.name)
@@ -120,14 +120,17 @@ def write_latex_list(files, output_file: Path, revisions: dict, title: str):
             rev = revision.get("rev", "-") or "-"
             issue_date = revision.get("issue_date", "-") or "-"
             status = revision.get("status", "-") or "-"
+            extension = file.suffix.lstrip(".").lower()
 
             f.write(
-                f"{escape_latex(file.name)} & "
+                f"{escape_latex(drawing_id)} & "
+                f"{escape_latex(extension)} & "
                 f"{escape_latex(description)} & "
                 f"{escape_latex(rev)} & "
                 f"{escape_latex(issue_date)} & "
                 f"{escape_latex(status)} \\\\\n"
             )
+
 
         f.write("\\hline\n")
         f.write("\\end{tabularx}\n")

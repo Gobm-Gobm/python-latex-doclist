@@ -178,7 +178,7 @@ def describe_drawing(filename: str) -> str:
     label = meta.get("label", "N/A")
     desc = meta.get("description", "")
 
-    return f"{label} — {desc}" if desc else label
+    return f"{label} - {desc}" if desc else label
 
 
 # ---------------------------------------------------------------------------
