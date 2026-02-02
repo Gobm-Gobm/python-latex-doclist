@@ -1,6 +1,12 @@
 from pathlib import Path
-from drawing_categories import DRAWING_CATEGORY
 
+from drawing_categories import (
+    DRAWING_CATEGORY,
+    DOCUMENT_CATEGORY,
+    CALCULATION_CATEGORY,
+    MODEL_CATEGORY,
+    PROTOCOL_CATEGORY,
+)
 
 # ---------------------------------------------------------------------------
 # Low-level helpers
@@ -34,12 +40,12 @@ def _extract_code_block(filename: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Drawing / document code extraction
+# Code extraction
 # ---------------------------------------------------------------------------
 
 def get_drawing_code(filename: str) -> str:
     """
-    Extract drawing / document / model code.
+    Extract drawing / document / model / protocol code.
 
     Returns:
     - '1103', 'D000', 'C110', 'M100', 'P110'
@@ -47,9 +53,11 @@ def get_drawing_code(filename: str) -> str:
     """
     code = _extract_code_block(filename)
 
+    # Numeric drawing code (DDTT)
     if len(code) == 4 and code.isdigit():
         return code
 
+    # Alphanumeric code (D000, C110, M100, P110)
     if len(code) == 4 and code[0].isalpha() and code[1:].isdigit():
         return code
 
@@ -62,7 +70,7 @@ def get_category_code(filename: str) -> str:
 
     Returns:
     - '11', '12', etc.
-    - 'N/A' for non-numeric or unknown codes
+    - 'N/A' for non-numeric codes
     """
     code = get_drawing_code(filename)
 
@@ -73,7 +81,7 @@ def get_category_code(filename: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Category metadata
+# Drawing category metadata helpers
 # ---------------------------------------------------------------------------
 
 def category_label(category_code: str) -> str:
@@ -92,6 +100,29 @@ def category_is_element_based(category_code: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Alphanumeric category lookup
+# ---------------------------------------------------------------------------
+
+def _lookup_alpha_category(code: str) -> dict | None:
+    """
+    Lookup alphanumeric codes (Dxxx, Cxxx, Mxxx, Pxxx).
+    """
+    prefix = code[0]
+
+    registry = {
+        "D": DOCUMENT_CATEGORY,
+        "C": CALCULATION_CATEGORY,
+        "M": MODEL_CATEGORY,
+        "P": PROTOCOL_CATEGORY,
+    }.get(prefix)
+
+    if not registry:
+        return None
+
+    return registry.get(code)
+
+
+# ---------------------------------------------------------------------------
 # Human-readable description
 # ---------------------------------------------------------------------------
 
@@ -100,20 +131,22 @@ def describe_drawing(filename: str) -> str:
     Generate a human-readable description.
 
     Rules:
-    - Element-based categories → include type
-    - Non-element-based → category only
-    - Alphanumeric codes → descriptive label
+    - Element-based numeric drawings → include type
+    - Non-element numeric drawings → label only
+    - Alphanumeric codes → label + description (if available)
     """
     code = get_drawing_code(filename)
     if code == "N/A":
         return "N/A"
 
-    # Numeric drawing code
+    # ------------------------------------------------------------------
+    # Numeric drawing codes (DDTT)
+    # ------------------------------------------------------------------
     if code.isdigit():
-        category = code[:2]
+        category_code = code[:2]
         type_code = code[2:]
 
-        meta = DRAWING_CATEGORY.get(category)
+        meta = DRAWING_CATEGORY.get(category_code)
         if not meta:
             return "N/A"
 
@@ -122,15 +155,18 @@ def describe_drawing(filename: str) -> str:
 
         return meta["label"]
 
-    # Alphanumeric codes (D000, C110, M100, P110)
-    prefix = code[0]
+    # ------------------------------------------------------------------
+    # Alphanumeric codes (documents, calculations, models, protocols)
+    # ------------------------------------------------------------------
+    meta = _lookup_alpha_category(code)
+    if not meta:
+        return "N/A"
 
-    return {
-        "D": "Document",
-        "C": "Calculation",
-        "M": "3D model",
-        "P": "Protocol / installation document",
-    }.get(prefix, "Document")
+    description = meta.get("description")
+    if description:
+        return f"{meta['label']} - {description}"
+
+    return meta["label"]
 
 
 # ---------------------------------------------------------------------------
@@ -139,12 +175,12 @@ def describe_drawing(filename: str) -> str:
 
 def get_tank_number(filename: str) -> str:
     """
-    Extract tank number.
+    Extract tank number from filename.
 
     Returns:
     - 'General' for 00
     - '01', '02', etc.
-    - 'N/A' if missing
+    - 'N/A' if missing or malformed
     """
     parts = filename.split("-")
 

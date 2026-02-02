@@ -11,7 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 # Scripts and files
 DOC_LIST_SCRIPT = PROJECT_ROOT / "src" / "generate_doc_list.py"
-TEX_FILE = PROJECT_ROOT / "report.tex"
+TEX_FILE = PROJECT_ROOT / "latex_build" / "test" / "report.tex"
 
 # Output folders
 RESULT_DIR = PROJECT_ROOT / "latex_result"
