@@ -1,12 +1,15 @@
 from pathlib import Path
+import csv
+
 from filename_parser import (
     describe_drawing,
     get_tank_number,
     get_drawing_code,
-    get_category_code,
-    category_packages,
+    code_packages,
 )
-import csv
+
+from sorters import panel_type_grouped
+from groupers import document_group
 from config import CSV_DELIMITER, PACKAGES
 
 
@@ -16,23 +19,12 @@ from config import CSV_DELIMITER, PACKAGES
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-# Folder containing input documents to be listed in the report
 DOCUMENTS_DIR = PROJECT_ROOT / "data" / "documents"
-
-# Output LaTeX file (this file is generated automatically)
 OUTPUT_DIR = PROJECT_ROOT / "output"
-
-# Folder containing csv file for revisions & dates
 REVISION_CSV = PROJECT_ROOT / "data" / "revisions.csv"
 
-# File extensions that should be treated as documents
-EXTENSIONS = {
-    ".pdf",   # Reports, drawings
-    ".tex",   # LaTeX source documents
-    ".rvt",   # Revit models
-}
+EXTENSIONS = {".pdf", ".tex", ".rvt"}
 
-# Mapping of LaTeX special characters to their escaped equivalents
 LATEX_SPECIAL_CHARS = {
     "&": r"\&",
     "%": r"\%",
@@ -47,18 +39,18 @@ LATEX_SPECIAL_CHARS = {
 
 
 # ---------------------------------------------------------------------------
-# Helper functions
+# Helpers
 # ---------------------------------------------------------------------------
 
 def escape_latex(text: str) -> str:
-    """Escape LaTeX special characters in text."""
+    """Escape LaTeX special characters."""
     for char, replacement in LATEX_SPECIAL_CHARS.items():
         text = text.replace(char, replacement)
     return text
 
 
 def get_documents(folder: Path):
-    """Scan the given folder and return a sorted list of document files."""
+    """Return all valid document files in folder."""
     if not folder.exists():
         print(f"Warning: document folder not found: {folder}")
         return []
@@ -69,10 +61,9 @@ def get_documents(folder: Path):
     )
 
 
-def load_revision_data(csv_path: Path):
-    """Load revision metadata from CSV into a lookup dictionary."""
+def load_revision_data(csv_path: Path) -> dict:
+    """Load revision metadata keyed by drawing_id."""
     if not csv_path.exists():
-        print(f"Warning: revision CSV not found: {csv_path}")
         return {}
 
     with csv_path.open("r", encoding="utf-8", newline="") as f:
@@ -87,36 +78,41 @@ def load_revision_data(csv_path: Path):
         return {row["drawing_id"]: row for row in reader}
 
 
-def base_drawing_id(filename: str) -> str:
+def sort_key(file: Path):
     """
-    Extract base drawing ID for revision lookup.
-
-    Removes any descriptive suffix after the drawing code.
+    Sorting strategy:
+    1) group blocks (plan/views, element drawings, models, misc/calcs/docs)
+    2) for element drawings, use your panel_type_grouped ordering
+    3) fallback to filename
     """
-    stem = Path(filename).stem
-    return stem.split("_")[0]
+    g = document_group(file)
 
+    # Element drawings: apply the grouped type sorter
+    if g == 2:
+        return (g, panel_type_grouped(file), file.name)
+
+    # Everything else: stable alphabetical
+    return (g, file.name)
+
+
+# ---------------------------------------------------------------------------
+# LaTeX output
+# ---------------------------------------------------------------------------
 
 def write_latex_list(files, output_file: Path, revisions: dict, title: str):
-    """
-    Write a compact LaTeX document list table.
-
-    Columns:
-    Filename | Description | Rev | Issue date | Status
-    """
+    """Write a compact LaTeX drawing list table."""
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
     with output_file.open("w", encoding="utf-8") as f:
         f.write("% Auto-generated file — do not edit manually\n")
-        f.write(f"\\section*{{{escape_latex(title)}}}\n")
-
+        f.write(f"\\section*{{{title}}}\n")
         f.write("\\begin{tabularx}{\\textwidth}{X X l l l}\n")
         f.write("\\hline\n")
         f.write("Filename & Description & Rev & Issue date & Status \\\\\n")
         f.write("\\hline\n")
 
         for file in files:
-            drawing_id = base_drawing_id(file.name)
+            drawing_id = file.stem
             revision = revisions.get(drawing_id, {})
 
             description = describe_drawing(file.name)
@@ -125,11 +121,8 @@ def write_latex_list(files, output_file: Path, revisions: dict, title: str):
             issue_date = revision.get("issue_date", "-") or "-"
             status = revision.get("status", "-") or "-"
 
-            base_id = base_drawing_id(file.name)
-            display_name = f"{base_id}{file.suffix}"
-
             f.write(
-                f"{escape_latex(display_name)} & "
+                f"{escape_latex(file.name)} & "
                 f"{escape_latex(description)} & "
                 f"{escape_latex(rev)} & "
                 f"{escape_latex(issue_date)} & "
@@ -148,38 +141,31 @@ def main():
     files = get_documents(DOCUMENTS_DIR)
     revisions = load_revision_data(REVISION_CSV)
 
-    # Prepare per-package file lists
     package_files = {pkg: [] for pkg in PACKAGES}
 
+    # Route files into packages (NOW supports numeric + alphanumeric codes)
     for file in files:
-        drawing_code = get_drawing_code(file.name)
-        category_code = get_category_code(file.name)
-
-        # Numeric drawing categories (DDTT)
-        if category_code != "N/A":
-            packages = category_packages(category_code)
-
-        # Alphanumeric codes (Dxxx, Cxxx, Mxxx, Pxxx)
-        elif drawing_code != "N/A":
-            packages = PACKAGES.keys()
-
-        else:
-            packages = set()
-
-        for pkg in packages:
+        code = get_drawing_code(file.name)
+        for pkg in code_packages(code):
             if pkg in package_files:
                 package_files[pkg].append(file)
 
-    # Write output per package
+    # Generate outputs per package
     for pkg, pkg_files in package_files.items():
-        if not pkg_files:
-            continue
+
+        # Tank 00 only (but ALL document types)
+        filtered = [
+            f for f in pkg_files
+            if get_tank_number(f.name) == "General"
+        ]
+
+        filtered = sorted(filtered, key=sort_key)
 
         out = OUTPUT_DIR / f"document_list_{pkg}.tex"
         title = PACKAGES[pkg]["title"]
 
-        write_latex_list(pkg_files, out, revisions, title)
-        print(f"Wrote {len(pkg_files)} documents to {out}")
+        write_latex_list(filtered, out, revisions, title)
+        print(f"Wrote {len(filtered)} documents to {out}")
 
 
 if __name__ == "__main__":
