@@ -1,5 +1,6 @@
 import subprocess
 import shutil
+import sys
 from pathlib import Path
 
 
@@ -39,7 +40,7 @@ def generate_document_list():
     """
     print("Generating document list...")
     subprocess.run(
-        ["python", DOC_LIST_SCRIPT.name],
+        [sys.executable, DOC_LIST_SCRIPT.name],
         cwd=DOC_LIST_SCRIPT.parent,
         check=True,
     )

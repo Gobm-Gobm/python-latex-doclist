@@ -1,7 +1,7 @@
 from filename_parser import get_drawing_code
 
 CATEGORY_BLOCKS = [
-    ("11", "12", "13", "14"),  # Wall panels
+    ("11", "12", "13", "14", "19"),  # Wall panels
     ("41", "42", "43", "44"),  # Buttresses
     ("61", "62", "63", "64"),  # Roof
 ]

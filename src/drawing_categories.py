@@ -41,7 +41,7 @@ DRAWING_CATEGORY = {
 
     "19": {
         "label": "Drilling areas / general",
-        "element_based": False,
+        "element_based": True,
         "packages": {"for_manufacture"},
     },
 

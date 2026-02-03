@@ -5,11 +5,11 @@ from filename_parser import (
     describe_drawing,
     get_tank_number,
     get_drawing_code,
+    category_is_element_based,
     code_packages,
 )
 
 from sorters import panel_type_grouped
-from groupers import document_group
 from config import CSV_DELIMITER, PACKAGES
 
 
@@ -81,18 +81,29 @@ def load_revision_data(csv_path: Path) -> dict:
 def sort_key(file: Path):
     """
     Sorting strategy:
-    1) group blocks (plan/views, element drawings, models, misc/calcs/docs)
-    2) for element drawings, use your panel_type_grouped ordering
-    3) fallback to filename
+    1) non-element-based numeric drawings
+    2) element-based numeric drawings
+    3) alphanumeric categories (D/C/M/P)
+    4) fallback to filename
     """
-    g = document_group(file)
+    code = get_drawing_code(file.name)
 
-    # Element drawings: apply the grouped type sorter
-    if g == 2:
-        return (g, panel_type_grouped(file), file.name)
+    if code.isdigit():
+        category = code[:2]
+        element_based = category_is_element_based(category)
+        section = 1 if element_based else 0
 
-    # Everything else: stable alphabetical
-    return (g, file.name)
+        if element_based:
+            return (section, panel_type_grouped(file), file.name)
+
+        return (section, category, code, file.name)
+
+    if len(code) == 4 and code[0].isalpha() and code[1:].isdigit():
+        if code.startswith("M"):
+            return (2, code, file.name)
+        return (3, code, file.name)
+
+    return (4, file.name)
 
 
 # ---------------------------------------------------------------------------
@@ -111,8 +122,36 @@ def write_latex_list(files, output_file: Path, revisions: dict, title: str):
         f.write("Filename & Ext. & Description & Rev & Issue date & Status \\\\\n")
         f.write("\\hline\n")
 
+        def write_section_header(label: str) -> None:
+            f.write("\\hline\n")
+            f.write(
+                f"\\multicolumn{{6}}{{l}}{{\\textbf{{{escape_latex(label)}}}}} \\\\\n"
+            )
+            f.write("\\hline\n")
+
+        current_section = None
+
         for file in files:
             drawing_id = file.stem.split("_", 1)[0]
+            code = get_drawing_code(file.name)
+            if code.isdigit():
+                category = code[:2]
+                element_based = category_is_element_based(category)
+                section = (
+                    "Element drawings"
+                    if element_based
+                    else "Plan views & sections"
+                )
+            else:
+                if code.startswith("M"):
+                    section = "3D models"
+                else:
+                    section = "Design documents & calculations"
+
+            if section != current_section:
+                write_section_header(section)
+                current_section = section
+
             revision = revisions.get(drawing_id, {})
 
             description = describe_drawing(file.name)
