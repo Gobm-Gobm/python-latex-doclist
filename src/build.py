@@ -12,7 +12,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 # Scripts and files
 DOC_LIST_SCRIPT = PROJECT_ROOT / "src" / "generate_doc_list.py"
-TEX_FILE = PROJECT_ROOT / "latex_build" / "test" / "report.tex"
+TEX_FILES = [
+    PROJECT_ROOT / "latex_build" / "test" / "report_for_client.tex",
+    PROJECT_ROOT / "latex_build" / "test" / "report_for_manufacture.tex",
+]
 
 # Output folders
 RESULT_DIR = PROJECT_ROOT / "latex_result"
@@ -85,8 +88,9 @@ def move_outputs(tex_file: Path):
 
 def main():
     generate_document_list()
-    run_pdflatex(TEX_FILE)
-    move_outputs(TEX_FILE)
+    for tex_file in TEX_FILES:
+        run_pdflatex(tex_file)
+        move_outputs(tex_file)
     print("Build completed successfully")
 
 

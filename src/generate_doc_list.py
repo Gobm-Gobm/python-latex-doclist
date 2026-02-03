@@ -110,7 +110,7 @@ def sort_key(file: Path):
 # LaTeX output
 # ---------------------------------------------------------------------------
 
-def write_latex_list(files, output_file: Path, revisions: dict, title: str):
+def write_latex_list(sections, output_file: Path, revisions: dict, title: str):
     """Write a compact LaTeX drawing list table."""
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -122,6 +122,13 @@ def write_latex_list(files, output_file: Path, revisions: dict, title: str):
         f.write("Filename & Ext. & Description & Rev & Issue date & Status \\\\\n")
         f.write("\\hline\n")
 
+        def write_group_header(label: str) -> None:
+            f.write("\\hline\n")
+            f.write(
+                f"\\multicolumn{{6}}{{l}}{{\\textbf{{{escape_latex(label)}}}}} \\\\\n"
+            )
+            f.write("\\hline\n")
+
         def write_section_header(label: str) -> None:
             f.write("\\hline\n")
             f.write(
@@ -129,46 +136,48 @@ def write_latex_list(files, output_file: Path, revisions: dict, title: str):
             )
             f.write("\\hline\n")
 
-        current_section = None
+        for group_label, group_files in sections:
+            write_group_header(group_label)
+            current_section = None
 
-        for file in files:
-            drawing_id = file.stem.split("_", 1)[0]
-            code = get_drawing_code(file.name)
-            if code.isdigit():
-                category = code[:2]
-                element_based = category_is_element_based(category)
-                section = (
-                    "Element drawings"
-                    if element_based
-                    else "Plan views & sections"
-                )
-            else:
-                if code.startswith("M"):
-                    section = "3D models"
+            for file in group_files:
+                drawing_id = file.stem.split("_", 1)[0]
+                code = get_drawing_code(file.name)
+                if code.isdigit():
+                    category = code[:2]
+                    element_based = category_is_element_based(category)
+                    section = (
+                        "Numeric drawings (element-based)"
+                        if element_based
+                        else "Numeric drawings (non-element-based)"
+                    )
                 else:
-                    section = "Design documents & calculations"
+                    if code.startswith("M"):
+                        section = "3D models"
+                    else:
+                        section = "Alphanumeric categories"
 
-            if section != current_section:
-                write_section_header(section)
-                current_section = section
+                if section != current_section:
+                    write_section_header(section)
+                    current_section = section
 
-            revision = revisions.get(drawing_id, {})
+                revision = revisions.get(drawing_id, {})
 
-            description = describe_drawing(file.name)
+                description = describe_drawing(file.name)
 
-            rev = revision.get("rev", "-") or "-"
-            issue_date = revision.get("issue_date", "-") or "-"
-            status = revision.get("status", "-") or "-"
-            extension = file.suffix.lstrip(".").lower()
+                rev = revision.get("rev", "-") or "-"
+                issue_date = revision.get("issue_date", "-") or "-"
+                status = revision.get("status", "-") or "-"
+                extension = file.suffix.lstrip(".").lower()
 
-            f.write(
-                f"{escape_latex(drawing_id)} & "
-                f"{escape_latex(extension)} & "
-                f"{escape_latex(description)} & "
-                f"{escape_latex(rev)} & "
-                f"{escape_latex(issue_date)} & "
-                f"{escape_latex(status)} \\\\\n"
-            )
+                f.write(
+                    f"{escape_latex(drawing_id)} & "
+                    f"{escape_latex(extension)} & "
+                    f"{escape_latex(description)} & "
+                    f"{escape_latex(rev)} & "
+                    f"{escape_latex(issue_date)} & "
+                    f"{escape_latex(status)} \\\\\n"
+                )
 
 
         f.write("\\hline\n")
@@ -194,20 +203,38 @@ def main():
 
     # Generate outputs per package
     for pkg, pkg_files in package_files.items():
+        files_by_tank = {}
+        for file in pkg_files:
+            tank = get_tank_number(file.name)
+            files_by_tank.setdefault(tank, []).append(file)
 
-        # Tank 00 only (but ALL document types)
-        filtered = [
-            f for f in pkg_files
-            if get_tank_number(f.name) == "General"
-        ]
+        sections = []
 
-        filtered = sorted(filtered, key=sort_key)
+        general_files = sorted(files_by_tank.pop("General", []), key=sort_key)
+        if general_files:
+            sections.append(("General (Tank 00)", general_files))
+
+        def tank_sort_key(tank_code: str):
+            if tank_code.isdigit():
+                return (0, int(tank_code))
+            return (1, tank_code)
+
+        for tank in sorted(files_by_tank.keys(), key=tank_sort_key):
+            tank_files = sorted(files_by_tank[tank], key=sort_key)
+            if not tank_files:
+                continue
+            if tank.isdigit():
+                label = f"Tank {tank} (Delta)"
+            else:
+                label = f"Tank {tank} (Delta)"
+            sections.append((label, tank_files))
 
         out = OUTPUT_DIR / f"document_list_{pkg}.tex"
         title = PACKAGES[pkg]["title"]
 
-        write_latex_list(filtered, out, revisions, title)
-        print(f"Wrote {len(filtered)} documents to {out}")
+        write_latex_list(sections, out, revisions, title)
+        total = sum(len(group_files) for _, group_files in sections)
+        print(f"Wrote {total} documents to {out}")
 
 
 if __name__ == "__main__":
