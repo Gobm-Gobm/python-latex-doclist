@@ -1,0 +1,30 @@
+\documentclass[a4paper,10pt]{article}
+
+\input{../../tex-templates/setup/report/preamble.tex}
+\input{project_meta}
+% Packages not included in the preamble
+\usepackage{tabularx}
+
+\renewcommand{\doctitle}{Drawing \& Document Register}
+\renewcommand{\docsubtitle}{Project Deliverables – For Client Package}
+% \renewcommand{\docproject}{Samherji – Eldisgarður, Reykjanesbær, Iceland}
+
+\renewcommand{\docnumber}{0.0.0}
+\renewcommand{\docrevision}{A}
+\renewcommand{\docrevisiondate}{\today}
+
+\renewcommand{\docpreparedby}{LK}
+\renewcommand{\docapprovedby}{-}
+
+
+\begin{document}
+\section*{Drawing List – For Client}
+\begin{tabularx}{\textwidth}{@{}l X l l@{}}
+Project no.: & \docprojectnumber & Made by: & \docpreparedby \\
+Project name: & \docproject & Rev.date: & \docrevisiondate \\
+Tank type: & \doctanktype & Rev: & \docrevision \\
+\end{tabularx}
+
+\input{../../output/document_list_for_client}
+
+\end{document}

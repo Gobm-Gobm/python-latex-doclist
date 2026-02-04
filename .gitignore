@@ -28,12 +28,12 @@ Thumbs.db
 output/document_list.tex
 
 # ---- Project data (input documents) ----
-data/**
-!data/**/.gitkeep
+ data/**
+ !data/**/.gitkeep
 
 # ---- Submodule ----
 tex-template/**
 
 # ---- LaTeX build output ----
-latex_build/
-latex_result/
+# latex_build/
+# latex_result/

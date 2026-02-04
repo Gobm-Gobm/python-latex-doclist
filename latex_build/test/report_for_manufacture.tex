@@ -1,0 +1,28 @@
+\documentclass[a4paper,10pt]{article}
+
+\input{../../tex-templates/setup/report/preamble.tex}
+\input{project_meta}
+% Packages not included in the preamble
+\usepackage{tabularx}
+
+\renewcommand{\doctitle}{Drawing \& Document Register}
+\renewcommand{\docsubtitle}{Project Deliverables – For Manufacture Package}
+
+\renewcommand{\docnumber}{5.4.5}
+\renewcommand{\docrevision}{01.00}
+\renewcommand{\docrevisiondate}{09.08.22}
+
+\renewcommand{\docpreparedby}{GSK}
+\renewcommand{\docapprovedby}{RK}
+
+
+\begin{document}
+\section*{Drawing List – For Manufacture}
+\begin{tabularx}{\textwidth}{@{}l X l l@{}}
+Project no.: & \docprojectnumber & Made by: & \docpreparedby \\
+Project name: & \docproject & Rev.date: & \docrevisiondate \\
+Tank type: & \doctanktype & Rev: & \docrevision \\
+\end{tabularx}
+\input{../../output/document_list_for_manufacture}
+
+\end{document}
