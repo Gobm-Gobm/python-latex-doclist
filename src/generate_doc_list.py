@@ -116,29 +116,30 @@ def write_latex_list(sections, output_file: Path, revisions: dict, title: str):
 
     with output_file.open("w", encoding="utf-8") as f:
         f.write("% Auto-generated file — do not edit manually\n")
-        f.write(f"\\section*{{{title}}}\n")
         f.write("\\begin{tabularx}{\\textwidth}{l l X l l l}\n")
         f.write("\\hline\n")
         f.write("Filename & Ext. & Description & Rev & Issue date & Status \\\\\n")
-        f.write("\\hline\n")
 
         def write_group_header(label: str) -> None:
             f.write("\\hline\n")
             f.write(
                 f"\\multicolumn{{6}}{{l}}{{\\textbf{{{escape_latex(label)}}}}} \\\\\n"
             )
-            f.write("\\hline\n")
+            f.write("\\noalign{\\vspace{4pt}}\n")
 
         def write_section_header(label: str) -> None:
             f.write("\\hline\n")
             f.write(
                 f"\\multicolumn{{6}}{{l}}{{\\textbf{{{escape_latex(label)}}}}} \\\\\n"
             )
-            f.write("\\hline\n")
+            f.write("\\noalign{\\vspace{4pt}}\n")
+
+        row_index = 1
 
         for group_label, group_files in sections:
             write_group_header(group_label)
             current_section = None
+            row_index = 1
 
             for file in group_files:
                 drawing_id = file.stem.split("_", 1)[0]
@@ -147,19 +148,20 @@ def write_latex_list(sections, output_file: Path, revisions: dict, title: str):
                     category = code[:2]
                     element_based = category_is_element_based(category)
                     section = (
-                        "Numeric drawings (element-based)"
+                        "Panel drawings"
                         if element_based
-                        else "Numeric drawings (non-element-based)"
+                        else "Plan views & sections"
                     )
                 else:
                     if code.startswith("M"):
                         section = "3D models"
                     else:
-                        section = "Alphanumeric categories"
+                        section = "Documents, calculation & misc."
 
                 if section != current_section:
                     write_section_header(section)
                     current_section = section
+                    row_index = 1
 
                 revision = revisions.get(drawing_id, {})
 
@@ -170,14 +172,18 @@ def write_latex_list(sections, output_file: Path, revisions: dict, title: str):
                 status = revision.get("status", "-") or "-"
                 extension = file.suffix.lstrip(".").lower()
 
+                row_index += 1
+                if row_index % 2:
+                    f.write("\\rowcolor{gray!10}\n")
+
                 f.write(
                     f"{escape_latex(drawing_id)} & "
                     f"{escape_latex(extension)} & "
                     f"{escape_latex(description)} & "
-                    f"{escape_latex(rev)} & "
-                    f"{escape_latex(issue_date)} & "
-                    f"{escape_latex(status)} \\\\\n"
-                )
+                f"{escape_latex(rev)} & "
+                f"{escape_latex(issue_date)} & "
+                f"{escape_latex(status)} \\\\\n"
+            )
 
 
         f.write("\\hline\n")
@@ -224,9 +230,9 @@ def main():
             if not tank_files:
                 continue
             if tank.isdigit():
-                label = f"Tank {tank} (Delta)"
+                label = f"Tank {tank}"
             else:
-                label = f"Tank {tank} (Delta)"
+                label = f"Tank {tank}"
             sections.append((label, tank_files))
 
         out = OUTPUT_DIR / f"document_list_{pkg}.tex"

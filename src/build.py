@@ -15,6 +15,7 @@ DOC_LIST_SCRIPT = PROJECT_ROOT / "src" / "generate_doc_list.py"
 TEX_FILES = [
     PROJECT_ROOT / "latex_build" / "test" / "report_for_client.tex",
     PROJECT_ROOT / "latex_build" / "test" / "report_for_manufacture.tex",
+    PROJECT_ROOT / "latex_build" / "test" / "report_for_installation.tex",
 ]
 
 # Output folders
