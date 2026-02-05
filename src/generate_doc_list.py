@@ -1,3 +1,4 @@
+import argparse
 from pathlib import Path
 import csv
 
@@ -18,10 +19,6 @@ from config import CSV_DELIMITER, PACKAGES
 # ---------------------------------------------------------------------------
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-
-DOCUMENTS_DIR = PROJECT_ROOT / "data" / "documents"
-OUTPUT_DIR = PROJECT_ROOT / "output"
-REVISION_CSV = PROJECT_ROOT / "data" / "revisions.csv"
 
 EXTENSIONS = {".pdf", ".tex", ".rvt"}
 
@@ -194,9 +191,39 @@ def write_latex_list(sections, output_file: Path, revisions: dict, title: str):
 # Entry point
 # ---------------------------------------------------------------------------
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Generate LaTeX drawing/document lists from a document folder."
+    )
+    parser.add_argument(
+        "--documents-dir",
+        type=Path,
+        default=PROJECT_ROOT / "data" / "documents",
+        help="Folder containing drawing/document files.",
+    )
+    parser.add_argument(
+        "--revisions-csv",
+        type=Path,
+        default=PROJECT_ROOT / "data" / "revisions.csv",
+        help="Path to revisions CSV metadata file.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=PROJECT_ROOT / "output",
+        help="Folder where generated .tex lists are written.",
+    )
+    return parser.parse_args()
+
+
 def main():
-    files = get_documents(DOCUMENTS_DIR)
-    revisions = load_revision_data(REVISION_CSV)
+    args = parse_args()
+    documents_dir = args.documents_dir.expanduser().resolve()
+    revisions_csv = args.revisions_csv.expanduser().resolve()
+    output_dir = args.output_dir.expanduser().resolve()
+
+    files = get_documents(documents_dir)
+    revisions = load_revision_data(revisions_csv)
 
     package_files = {pkg: [] for pkg in PACKAGES}
 
@@ -235,7 +262,7 @@ def main():
                 label = f"Tank {tank}"
             sections.append((label, tank_files))
 
-        out = OUTPUT_DIR / f"document_list_{pkg}.tex"
+        out = output_dir / f"document_list_{pkg}.tex"
         title = PACKAGES[pkg]["title"]
 
         write_latex_list(sections, out, revisions, title)

@@ -11,6 +11,40 @@ Generate LaTeX drawing/document lists and build client, manufacture, and install
 python3 src/build.py
 ```
 
+Use files from any folder on your machine:
+
+```bash
+python3 src/build.py --documents-dir "/path/to/your/documents"
+```
+example
+
+```
+python3 src/build.py --documents-dir "/mnt/e/testfolder/data/documents"
+```
+
+When `--documents-dir` is set, build will by default:
+- use `revisions.csv` inside that same folder
+- write `document_list_*.tex` files into the repo `output/` folder
+- write generated PDFs into that same folder
+
+You can override it explicitly:
+
+```bash
+python3 src/build.py --documents-dir "/path/to/your/documents" --revisions-csv "/path/to/revisions.csv" --output-dir "/path/to/output" --result-dir "/path/to/pdfs"
+```
+
+Generate or refresh the revision CSV from CLI:
+
+```bash
+python3 src/generate_revision_csv.py --documents-dir "/path/to/your/documents"
+```
+
+Optional custom CSV output path:
+
+```bash
+python3 src/generate_revision_csv.py --documents-dir "/path/to/your/documents" --csv-file "/path/to/revisions.csv"
+```
+
 **Outputs**
 
 The build produces:
