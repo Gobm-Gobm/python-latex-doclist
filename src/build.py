@@ -40,6 +40,30 @@ LATEX_EXTENSIONS = {
 # Build steps
 # ---------------------------------------------------------------------------
 
+
+def ensure_writable_output_dir(path: Path, fallback: Path) -> Path:
+    """
+    Return `path` if writable, otherwise return `fallback`.
+
+    Network-mounted shares (drvfs/SMB) can appear accessible for reads but still
+    fail on create/overwrite operations from WSL. We probe by creating and
+    deleting a tiny file so we can pick a safe destination up-front.
+    """
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        probe = path / ".write_test"
+        with probe.open("w", encoding="utf-8") as f:
+            f.write("ok")
+        probe.unlink()
+        return path
+    except OSError:
+        fallback.mkdir(parents=True, exist_ok=True)
+        print(
+            f"Warning: Cannot write to '{path}'. "
+            f"Falling back to '{fallback}'."
+        )
+        return fallback
+
 def generate_document_list(
     documents_dir: Optional[Path] = None,
     revisions_csv: Optional[Path] = None,
@@ -89,7 +113,27 @@ def move_outputs(tex_file: Path, result_dir: Path):
     for file in tex_file.parent.iterdir():
         # Final PDF → latex_result/
         if file.suffix == ".pdf" and file.stem == base_name:
-            shutil.move(str(file), result_dir / file.name)
+            destination = result_dir / file.name
+            try:
+                shutil.move(str(file), destination)
+            except PermissionError:
+                # Cross-filesystem move may internally use copy2 + copystat,
+                # which can fail on SMB/DrvFs when metadata updates are denied.
+                try:
+                    # copyfile avoids metadata operations (utime/chmod), so it
+                    # succeeds on more restrictive network shares.
+                    shutil.copyfile(file, destination)
+                    file.unlink()
+                except PermissionError:
+                    fallback_destination = RESULT_DIR / file.name
+                    RESULT_DIR.mkdir(parents=True, exist_ok=True)
+                    # Last-resort: ensure build completion by writing locally
+                    # when the share blocks overwrite/create for this file.
+                    print(
+                        f"Warning: Cannot write '{destination}'. "
+                        f"Saving PDF to '{fallback_destination}' instead."
+                    )
+                    shutil.move(str(file), fallback_destination)
 
         # Build artefacts → latex_build/
         elif file.suffix in LATEX_EXTENSIONS:
@@ -150,6 +194,7 @@ def main():
     elif documents_dir is not None:
         # When using an external documents folder, default PDF output next to input.
         result_dir = documents_dir
+    result_dir = ensure_writable_output_dir(result_dir, RESULT_DIR)
 
     generate_document_list(
         documents_dir=documents_dir,
