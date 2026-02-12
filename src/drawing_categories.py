@@ -226,6 +226,12 @@ DOCUMENT_CATEGORY = {
         "packages": {"for_client", "for_installation"},
     },
 
+    "D010": {
+        "label": "Official order (manufacture)",
+        "description": "Manufacture order list with drawing references and required panel quantities",
+        "packages": {"for_manufacture"},
+    },
+
     "D100": {
         "label": "Design risk assessment",
         "description": "Designer risk assessment and hazard identification",
