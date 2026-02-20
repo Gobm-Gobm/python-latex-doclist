@@ -261,7 +261,7 @@ CALCULATION_CATEGORY = {
     "C120": {
         "label": "Wall propping calculations",
         "description": "Temporary propping and stability calculations",
-        "packages": {"for_manufacture", "for_installation"},
+        "packages": {"for_client","for_manufacture", "for_installation"},
     },
 
     "C130": {
